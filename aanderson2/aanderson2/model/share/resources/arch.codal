@@ -1,0 +1,38 @@
+#include "config.hcodal"
+
+// -------------------------------------------------------------------------------------------------
+// Program counter
+// -------------------------------------------------------------------------------------------------
+pc register bit[ADDR_W] r_pc { default = BOOT_START; };
+
+// -------------------------------------------------------------------------------------------------
+// Register File
+// -------------------------------------------------------------------------------------------------
+arch register_file bit[WORD_W] rf_gpr
+{
+    size = RF_GPR_SIZE;
+    reset = true;
+    default = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+// Address space
+// -------------------------------------------------------------------------------------------------
+address_space as_all
+{
+// The same as the interface if_fetch and if_ldst
+    bits = { ADDR_W, WORD_W, LAU_W };
+// List of all interfaces that are used to access memories in this address space
+    interfaces = { PROGRAM : if_fetch, DATA : if_ldst };
+// Type specifies how this address space is used, in this case the address space is
+// used for both program and data (ALL). Other options are PROGRAM and DATA.
+    type = ALL;
+// Memory organization endianess of the address space must be the same as
+// in the used memory interfaces
+    endianness = ENDIAN;
+};
+// -------------------------------------------------------------------------------------------------
+// Schedule classes
+// -------------------------------------------------------------------------------------------------
+schedule_class sc_load { latency = 2; };
+

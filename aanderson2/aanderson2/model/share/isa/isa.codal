@@ -1,0 +1,391 @@
+#include "config.hcodal"
+#include "utils.hcodal"
+#include "opcodes.hcodal"
+#include "debug.hcodal"
+
+DEF_OPC(nop, "nop", OPC_NOP)
+element i_nop
+{
+    use opc_nop as opc;
+    assembler { opc };
+    binary { opc REMAINING_BITS(OPC_W) };
+    semantics
+    {
+    };
+};
+
+DEF_OPC(halt, "halt", OPC_HALT)
+element i_halt
+{
+    use opc_halt as opc;
+    assembler { opc };
+    binary { opc REMAINING_BITS(OPC_W) };
+    semantics
+    {
+        codasip_halt();
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Instruction set architecture
+// -------------------------------------------------------------------------------------------------
+set isa = i_nop,
+          i_halt;
+
+// -------------------------------------------------------------------------------------------------
+// Start section
+// -------------------------------------------------------------------------------------------------
+// The start section represents the top level construct for the grammar describing the assembly and
+// binary language for the modeled processor.
+start {
+// Whole ISA is used.
+    roots = { isa }; };
+
+// -------------------------------------------------------------------------------------------------
+// Move instruction
+// -------------------------------------------------------------------------------------------------
+DEF_OPC(mov, "mov", OPC_MOV)
+element i_mov
+{
+    // If only one instance of a certain operation or group is used, then
+    // there is no need to assign a unique name and we can refer to it using its
+    // operation or group name.
+    // However for clarity purpose, all opcode elements/sets are named as 'opc'.
+    use opc_mov as opc;
+    // Element instances are like local variables.
+    // The ID after 'use' specifies the instance datatype
+    // The ID after 'as' gives the name of the instance (like a local variable).
+    use gpr_all as gpr_dst, gpr_src2;
+    // The textual form of the instruction
+    assembler { gpr_dst "=" opc gpr_src2 };
+    // The instructions's binary coding follows the arithmetic instruction format
+    binary { opc gpr_dst UNUSED:bit [RF_GPR_W] gpr_src2 REMAINING_BITS(OPC_W + 3*RF_GPR_W) };
+    // The instruction's behavior is described using a subset of the ANSI C language.
+    // Instances have values returned for their operations.
+    semantics
+    {
+        uint32 result;
+        // Read source register
+        // The return section of register file element is used to return register index.
+        result = rf_gpr_read(gpr_src2);
+        // Store result
+        rf_gpr_write(result, gpr_dst);
+    };
+};
+// -------------------------------------------------------------------------------------------------
+// Arithmetic instructions
+// -------------------------------------------------------------------------------------------------
+// Opcodes are defined for arithmetic and logical instructions. All these instructions
+// have three register operands and they are necessary for efficient C compilation.
+DEF_OPC(add, "add", OPC_ADD)
+DEF_OPC(sub, "sub", OPC_SUB)
+DEF_OPC(mul, "mul", OPC_MUL)
+DEF_OPC(and, "and", OPC_AND)
+DEF_OPC(or, "or", OPC_OR)
+DEF_OPC(xor, "xor", OPC_XOR)
+DEF_OPC(sll, "sll", OPC_SLL)
+DEF_OPC(srl, "srl", OPC_SRL)
+DEF_OPC(sra, "sra", OPC_SRA)
+// These operation codes are grouped as a 'set':
+set opc_alu = opc_add,
+              opc_sub,
+              opc_mul,
+              opc_and,
+              opc_or,
+              opc_xor,
+              opc_sll,
+              opc_srl,
+              opc_sra;
+
+element i_alu
+{
+    use opc_alu as opc;
+    use gpr_all as gpr_dst, gpr_src1, gpr_src2;
+    assembler { gpr_dst "=" opc gpr_src1 "," gpr_src2 };
+    binary { opc gpr_dst gpr_src1 gpr_src2 REMAINING_BITS(OPC_W + 3*RF_GPR_W) };
+    semantics
+    {
+        uint32 src1, src2, result;
+        src1 = rf_gpr_read(gpr_src1);
+        src2 = rf_gpr_read(gpr_src2);
+        result = alu(opc, src1, src2);
+        // Store result
+        rf_gpr_write(result, gpr_dst);
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Instructions for loading immediate value to register
+// -------------------------------------------------------------------------------------------------
+// These instructions hold a constant as a part of their binary coding, which can be
+// used to initialize register values.
+DEF_OPC(movsi, "movsi", OPC_MOVSI)
+DEF_OPC(movhi, "movhi", OPC_MOVHI)
+set opc_movsi_movhi = opc_movsi,
+                      opc_movhi;
+element i_movsi_movhi
+{
+    use opc_movsi_movhi as opc;
+    use gpr_all as gpr_dst;
+    use simm19 as simm;
+    assembler { gpr_dst "=" opc simm };
+// Binary of signed immediate value is sliced into two parts using square brackets.
+    binary { opc simm[18 .. 14] gpr_dst simm[13 .. 0] };
+    semantics
+    {
+        uint32 result;
+        switch (opc)
+        {
+            case OPC_MOVSI:
+                result = simm;
+                break;
+            case OPC_MOVHI:
+                result = simm[15 .. 0] :: rf_gpr_read(gpr_dst)[15 .. 0];
+                break;
+            default:
+                result = 0;
+                codasip_fatal(FATAL_DEFAULT, "Default case: %d\n", opc);
+                break;
+        }
+// Store result
+        rf_gpr_write(result, gpr_dst);
+    };
+};
+// -------------------------------------------------------------------------------------------------
+// Load instructions
+// -------------------------------------------------------------------------------------------------
+DEF_OPC(ld, "ld", OPC_LD)
+DEF_OPC(ldhu, "ldhu", OPC_LDHU)
+DEF_OPC(ldhs, "ldhs", OPC_LDHS)
+DEF_OPC(ldbu, "ldbu", OPC_LDBU)
+DEF_OPC(ldbs, "ldbs", OPC_LDBS)
+set opc_load = opc_ld, opc_ldhu, opc_ldhs, opc_ldbu, opc_ldbs;
+
+element i_load
+{
+use opc_load as opc;
+use gpr_all as gpr_dst, gpr_src1;
+    use simm14 as simm;
+    assembler { gpr_dst "=" opc "[" gpr_src1 "+" simm "]" };
+    binary { opc simm[13 .. 9] gpr_src1 gpr_dst simm[8 .. 0] };
+    semantics
+    {
+        uint32 address, result;
+// Microarchitectural design might lead to higher latency of some instructions.
+// In this tutorial model, all load instructions have latency of two cycles.
+// Compiler is aware of the different latency, because appropriate schedule class was
+// assigned, and reorders instruction to achieve better results.
+        codasip_compiler_schedule_class(sc_load);
+        address = rf_gpr_read(gpr_src1) + simm;
+        result = load(opc, address);
+        rf_gpr_write(result, gpr_dst);
+    };
+};
+// -------------------------------------------------------------------------------------------------
+// Store Instructions
+// -------------------------------------------------------------------------------------------------
+DEF_OPC(st, "st", OPC_ST)
+DEF_OPC(sth, "sth", OPC_STH)
+DEF_OPC(stb, "stb", OPC_STB)
+set opc_store = opc_st, opc_sth, opc_stb;
+element i_store
+{
+    use opc_store as opc;
+    use gpr_all as gpr_src1, gpr_src2;
+    use simm14 as simm;
+    assembler { opc gpr_src2 "," "[" gpr_src1 "+" simm "]" };
+    binary { opc simm[13 .. 9] gpr_src1 gpr_src2 simm[8 .. 0] };
+    semantics
+    {
+        uint32 address, result;
+        address = rf_gpr_read(gpr_src1) + simm;
+        result = rf_gpr_read(gpr_src2);
+        store(opc, address, result);
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Direct jump and call instructions
+// -------------------------------------------------------------------------------------------------
+// Since each instruction has 32 bits and the opcode takes 8 of them, there remain 24 bits
+// for an immediate address operand.
+DEF_OPC(jump_abs, "jump", OPC_JUMP_ABS)
+DEF_OPC(call_abs, "call", OPC_CALL_ABS)
+set opc_jump_call_abs = opc_jump_abs,
+                        opc_call_abs;
+element i_jump_call_abs
+{
+    use opc_jump_call_abs as opc;
+    use abs_addr24 as abs_addr;
+    assembler { opc abs_addr };
+    binary { opc abs_addr };
+    semantics
+    {
+// The return address for calls is normally stored in GPR_RETADDR
+        if (opc == OPC_CALL_ABS)
+        {
+// PC was already incremented by INSTR_SIZE in the main event.
+            rf_gpr_write(r_pc, GPR_RETADDR);
+        }
+// Set the new program counter value
+        set_pc(abs_addr);
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Indirect jump and call instructions
+// -------------------------------------------------------------------------------------------------
+// The textual assembly names may be the same as for the preceding jump and call instructions
+// The assembler is able to choose the correct instruction according to the other operands.
+// The indirect jump instruction is essential for C compilers since most switch constructs use it.
+DEF_OPC(jump_gpr, "jump", OPC_JUMP_GPR)
+DEF_OPC(call_gpr, "call", OPC_CALL_GPR)
+set opc_jump_call_gpr = opc_jump_gpr,
+                        opc_call_gpr;
+element i_jump_call_gpr
+{
+    use opc_jump_call_gpr as opc;
+    use gpr_all as gpr_src2;
+    assembler { opc gpr_src2 };
+    binary { opc UNUSED:bit [2 * RF_GPR_W] gpr_src2 REMAINING_BITS(OPC_W + 3*RF_GPR_W) };
+    semantics
+    {
+        if (opc == OPC_CALL_GPR)
+        {
+            uint32 pc_backup;
+// We need to backup current PC to temporary variable to execute "call GPR_RETADDR"
+// correctly.
+            pc_backup = r_pc;
+            set_pc(rf_gpr_read(gpr_src2));
+// PC was already incremented by INSTR_SIZE in the main event.
+            rf_gpr_write(pc_backup, GPR_RETADDR);
+        }
+        else
+        {
+            set_pc(rf_gpr_read(gpr_src2));
+        }
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Compare instructions
+// -------------------------------------------------------------------------------------------------
+DEF_OPC(eq, "eq", OPC_EQ)
+DEF_OPC(neq, "neq", OPC_NEQ)
+DEF_OPC(slt, "slt", OPC_SLT)
+DEF_OPC(ult, "ult", OPC_ULT)
+DEF_OPC(sle, "sle", OPC_SLE)
+DEF_OPC(ule, "ule", OPC_ULE)
+set opc_cmp = opc_eq,
+              opc_neq,
+              opc_slt,
+              opc_ult,
+              opc_sle,
+              opc_ule;
+element i_cmp
+{
+    use opc_cmp as opc;
+    use gpr_all as gpr_dst, gpr_src1, gpr_src2;
+    assembler { gpr_dst "=" opc gpr_src1 "," gpr_src2 };
+    binary { opc gpr_dst gpr_src1 gpr_src2 REMAINING_BITS(OPC_W + 3*RF_GPR_W) };
+    semantics
+    {
+        uint32 src1, src2, result;
+        src1 = rf_gpr_read(gpr_src1);
+        src2 = rf_gpr_read(gpr_src2);
+        result = cmp(opc, src1, src2);
+// The destination register is set to a non-zero value when the condition holds.
+        rf_gpr_write(result, gpr_dst);
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Conditional jump instructions (using relative addressing)
+// -------------------------------------------------------------------------------------------------
+DEF_OPC(jumpz, "jumpz", OPC_JUMPZ)
+DEF_OPC(jumpnz, "jumpnz", OPC_JUMPNZ)
+set opc_jump_cond = opc_jumpz,
+                    opc_jumpnz;
+element i_jump_cond
+{
+    use opc_jump_cond as opc;
+    use gpr_all as gpr_src1;
+    use rel_addr14 as rel_addr;
+    assembler { opc gpr_src1 "," rel_addr };
+    binary { opc rel_addr[13 .. 9] gpr_src1 UNUSED:bit [RF_GPR_W] rel_addr[8 .. 0] };
+    semantics
+    {
+        int cond;
+        cond = ((opc == OPC_JUMPZ) && (rf_gpr_read(gpr_src1) == 0)) || ((opc == OPC_JUMPNZ) && (rf_gpr_read(
+                        gpr_src1) != 0));
+        if (cond)
+        {
+// INSTR_SIZE is subtracted, because PC was already increased in the main event.
+            set_pc(r_pc + rel_addr - INSTR_SIZE);
+        }
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Conditional move instruction
+// -------------------------------------------------------------------------------------------------
+// A conditional move can be used to make an efficient implementation of a select operation
+// (e.e. the ternary operator in C).
+DEF_OPC(movz, "movz", OPC_MOVZ)
+DEF_OPC(movnz, "movnz", OPC_MOVNZ)
+set opc_mov_cond = opc_movz,
+                   opc_movnz;
+element i_mov_cond
+{
+    use opc_mov_cond as opc;
+    use gpr_all as gpr_dst, gpr_src1, gpr_src2;
+    assembler { gpr_dst "=" opc gpr_src1 "," gpr_src2 };
+    binary { opc gpr_dst gpr_src1 gpr_src2 REMAINING_BITS(OPC_W + 3*RF_GPR_W) };
+    semantics
+    {
+        uint32 result;
+        bool cond;
+        cond = ((opc == OPC_MOVZ) && (rf_gpr_read(gpr_src1) == 0)) || ((opc == OPC_MOVNZ) && (rf_gpr_read(
+                        gpr_src1) != 0));
+        if (cond)
+        {
+            result = rf_gpr_read(gpr_src2);
+            rf_gpr_write(result, gpr_dst);
+        }
+    };
+};
+
+// -------------------------------------------------------------------------------------------------
+// Addi instruction
+// -------------------------------------------------------------------------------------------------
+// An instruction that can add or subtract an immediate from the stack pointer
+// is needed in order to generate a C compiler.
+DEF_OPC(addi, "addi", OPC_ADDI)
+element i_addi
+{
+    use opc_addi as opc;
+    use gpr_all as gpr_dst, gpr_src1;
+    use simm14 as simm;
+    assembler { gpr_dst "=" opc gpr_src1 "," simm };
+    binary { opc simm[13 .. 9] gpr_src1 gpr_dst simm[8 .. 0] };
+    semantics
+    {
+        uint32 src1, src2, result;
+        src1 = rf_gpr_read(gpr_src1);
+        src2 = simm;
+        result = alu(opc, src1, src2);
+        rf_gpr_write(result, gpr_dst);
+    };
+};
+
+set isa += i_mov,
+           i_alu,
+           i_movsi_movhi,
+           i_load,
+           i_store,
+           i_jump_call_abs,
+           i_jump_call_gpr,
+           i_cmp,
+           i_mov_cond,
+           i_jump_cond,
+           i_addi;

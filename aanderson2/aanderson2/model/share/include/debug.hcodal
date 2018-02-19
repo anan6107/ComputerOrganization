@@ -1,0 +1,22 @@
+// Activate all info printing in debugger like this:
+// In Debug -> Debug Configurations... -> Codasip C/C++ Application -> Debugger
+// -> Debugger parameters: "--info 0+"
+
+#ifndef DEBUG_HCODAL
+#define DEBUG_HCODAL
+
+enum info_levels
+{
+    INFO_GENERAL = 2,
+    INFO_RF_WRITE = 3,
+    INFO_PC_WRITE = 4,
+    INFO_INTERFACE = 5,
+    INFO_PIPE = 6
+};
+// Enumeration codes to specify type of fatal errors
+enum fatal_codes
+{
+    FATAL_DEFAULT = 128
+};
+
+#endif // DEBUG_HCODAL

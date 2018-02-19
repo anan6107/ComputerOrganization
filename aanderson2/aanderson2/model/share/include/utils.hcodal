@@ -1,0 +1,30 @@
+#ifndef UTILS_HCODAL
+#define UTILS_HCODAL
+
+#include "config.hcodal"
+
+#define DEF_GPR(index) \
+    element gpr_##index \
+    {\
+        assembler { STRINGIZE(r##index)}; \
+        binary { index:bit[RF_GPR_W] }; \
+        return { index }; \
+    };
+
+#define DEF_OPC(name, syntax, opc) \
+    element opc_##name \
+    {\
+        assembler { syntax }; \
+        binary { opc }; \
+        return { opc }; \
+    };
+#define REMAINING_BITS(bw) UNUSED:bit[INSTR_W - (bw)]
+#define DEF_GPR(index) \
+    element gpr_##index \
+    {\
+        assembler { STRINGIZE(r##index)}; \
+        binary { index:bit[RF_GPR_W] }; \
+        return { index }; \
+};
+
+#endif //UTILS_HCODAL

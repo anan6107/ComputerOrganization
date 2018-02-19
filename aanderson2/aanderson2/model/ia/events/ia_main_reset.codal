@@ -1,0 +1,32 @@
+#include "config.hcodal"
+#include "debug.hcodal"
+
+event main
+{
+// The directive 'use' defines instances of other events and elements.
+    use isa;
+// Local instruction register
+    register bit[INSTR_W] r_instruction_buffer;
+    semantics
+    {
+// Read an instruction from memory
+        r_instruction_buffer = if_fetch[r_pc];
+// Print fetched instruction
+        codasip_print(INFO_GENERAL, "\n- \n");
+        codasip_disassembler(INFO_GENERAL, r_instruction_buffer, r_pc);
+        codasip_print(INFO_GENERAL, "\n- \n");
+// Increment the program counter
+        r_pc += INSTR_SIZE;
+// The isa is a set of instructions and its argument is a register
+// or memory cell that contains the instruction to be executed.
+        isa(r_instruction_buffer);
+    };
+};
+
+event reset
+{
+    semantics
+    {
+        codasip_info(INFO_GENERAL, "Reseting...");
+    };
+};

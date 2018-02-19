@@ -1,0 +1,36 @@
+#ifndef CONFIG_HCODAL
+#define CONFIG_HCODAL
+
+#define BOOT_START      0   // Program start address
+
+#define RF_GPR_W        5   // Width of index
+#define RF_GPR_SIZE     32  // Count of registers
+#define RF_GPR_RP       2   // Count of read ports              
+#define RF_GPR_WP       1   // Count of write ports             
+#define GPR_SP          0   // Stack pointer index
+#define GPR_FP          1   // Frame pointer index
+#define GPR_AUX         2   // Auxiliary register index
+#define GPR_RETADDR     3   // Return address index
+#define GPR_RETVAL      4   // Return value index
+
+#define ENDIAN          BIG // Endianness of data
+
+#define ADDR_W          32  // Width of address
+#define WORD_W          32  // Width of data
+#define LAU_W           8   // Width of least addressable unit
+
+#define INSTR_W         32  // Width of instruction
+#define INSTR_SIZE      4   // Size of instruction in bytes
+#define OPC_W           8   // Width of opcode
+
+#define UNUSED          0
+
+#define IMM14_W         14  // Width of immediates
+#define IMM16_W         16
+#define IMM19_W         19
+#define IMM24_W         24
+
+#define BUS_MASK   (~0x3u)  // Word align mask
+
+#endif // CONFIG_HCODAL
+

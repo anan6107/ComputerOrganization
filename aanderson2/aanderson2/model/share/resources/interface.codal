@@ -1,0 +1,31 @@
+#include "config.hcodal"
+
+// -------------------------------------------------------------------------------------------------
+// Interface to code memory
+// -------------------------------------------------------------------------------------------------
+interface if_fetch
+{
+// The bits specifier has 3 values:
+// - address bus bitwidth
+// - word bitwidth
+// - byte size (byte size is equal to the smallest addressable by
+    bits = { ADDR_W, WORD_W, LAU_W };
+// The type says what interface this is. For simplicity it is enough now
+// to specify only MEMORY:MASTER here. The MEMORY:MASTER says that this interface
+// is a memory-like interface and the processor core behaves as a master on the bus.
+    type = MEMORY : MASTER;
+// Read-only interface
+    flag = R;
+// Setting endianness of interface
+    endianness = ENDIAN;
+};
+// -------------------------------------------------------------------------------------------------
+// Interface to data memory
+// -------------------------------------------------------------------------------------------------
+interface if_ldst
+{
+    bits = { ADDR_W, WORD_W, LAU_W };
+    type = MEMORY : MASTER;
+    flag = RW;
+    endianness = ENDIAN;
+};
