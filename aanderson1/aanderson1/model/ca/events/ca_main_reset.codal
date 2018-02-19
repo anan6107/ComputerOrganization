@@ -1,0 +1,59 @@
+/**
+ * Codasip Ltd
+ *
+ * CONFIDENTIAL
+ *
+ * Copyright 2016 Codasip Ltd
+ *
+ * All Rights Reserved.
+ *
+ * NOTICE: All information contained in this file, is and shall remain the property of Codasip Ltd
+ * and its suppliers, if any.
+ *
+ * The intellectual and technical concepts contained herein are confidential and proprietary to
+ * Codasip Ltd and are protected by trade secret and copyright law.  In addition, elements of the
+ * technical concepts may be patent pending.
+ *
+ * This file is part of the Codasip Studio product. No part of the Studio product, including this
+ * file, may be use, copied, modified, or distributed except in accordance with the terms contained
+ * in Codasip license agreement under which you obtained this file.
+ */
+
+/* -------------------------------------------------------------------------------------------------
+ *
+ *                          Codasip uRISC CA - main and reset events
+ *
+ * -------------------------------------------------------------------------------------------------
+ */
+
+#include "config.hcodal"
+#include "debug.hcodal"
+
+event main
+{
+    use pipeline_control;
+    use fe;
+    use id;
+    use ex;
+    use wb;
+
+    semantics
+    {
+        codasip_print(INFO_PIPE, "\n-----------------------------\n");
+
+        wb();
+        ex();
+        id();
+        fe();
+        pipeline_control();
+    };
+};
+
+event reset
+{
+    semantics
+    {
+        codasip_info(INFO_GENERAL, "Reseting...");
+    };
+};
+

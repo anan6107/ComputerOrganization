@@ -1,0 +1,75 @@
+/**
+ * Codasip Ltd
+ *
+ * CONFIDENTIAL
+ *
+ * Copyright 2016 Codasip Ltd
+ *
+ * All Rights Reserved.
+ *
+ * NOTICE: All information contained in this file, is and shall remain the property of Codasip Ltd
+ * and its suppliers, if any.
+ *
+ * The intellectual and technical concepts contained herein are confidential and proprietary to
+ * Codasip Ltd and are protected by trade secret and copyright law.  In addition, elements of the
+ * technical concepts may be patent pending.
+ *
+ * This file is part of the Codasip Studio product. No part of the Studio product, including this
+ * file, may be use, copied, modified, or distributed except in accordance with the terms contained
+ * in Codasip license agreement under which you obtained this file.
+ */
+
+/* -------------------------------------------------------------------------------------------------
+ *
+ *                          Codasip uRISC CA - fetch stage events
+ *
+ * -------------------------------------------------------------------------------------------------
+ */
+
+#include "config.hcodal"
+#include "debug.hcodal"
+
+// -------------------------------------------------------------------------------------------------
+// Fetch stage
+// -------------------------------------------------------------------------------------------------
+
+event fe : pipeline(pipe.FE)
+{
+    semantics
+    {
+        // -----------------------------------------------------------------------------------------
+        // Instruction fetch request
+        // -----------------------------------------------------------------------------------------
+        uint2 status;
+
+        if_fetch.transport(CP_PHS_ADDRESS, status, CP_CMD_READ, r_pc, 0, INSTR_SIZE);
+
+        s_fe_stall = 0;
+
+        // -----------------------------------------------------------------------------------------
+        // Program Counter update
+        // -----------------------------------------------------------------------------------------
+
+        r_id_pc = r_pc;
+
+        if (s_ex_jump_en)
+        {
+            codasip_info(INFO_PC_WRITE, "Jumping to 0x%x", s_ex_alu & BUS_MASK);
+            r_pc = (s_ex_alu & BUS_MASK);
+        }
+        else
+        {
+            r_pc += INSTR_SIZE;
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Pipeline control
+        // -----------------------------------------------------------------------------------------
+
+        // ID and EX stage are cleared after jump.
+        s_id_clear = s_ex_jump_en;
+        r_id_clear = s_ex_jump_en;
+        s_ex_clear = s_ex_jump_en;
+        s_wb_clear = s_ex_stall;
+    };
+};

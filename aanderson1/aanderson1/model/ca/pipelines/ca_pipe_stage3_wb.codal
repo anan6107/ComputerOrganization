@@ -1,0 +1,122 @@
+/**
+ * Codasip Ltd
+ *
+ * CONFIDENTIAL
+ *
+ * Copyright 2016 Codasip Ltd
+ *
+ * All Rights Reserved.
+ *
+ * NOTICE: All information contained in this file, is and shall remain the property of Codasip Ltd
+ * and its suppliers, if any.
+ *
+ * The intellectual and technical concepts contained herein are confidential and proprietary to
+ * Codasip Ltd and are protected by trade secret and copyright law.  In addition, elements of the
+ * technical concepts may be patent pending.
+ *
+ * This file is part of the Codasip Studio product. No part of the Studio product, including this
+ * file, may be use, copied, modified, or distributed except in accordance with the terms contained
+ * in Codasip license agreement under which you obtained this file.
+ */
+
+/* -------------------------------------------------------------------------------------------------
+ *
+ *                         Codasip uRISC CA - writeback stage events
+ *
+ * -------------------------------------------------------------------------------------------------
+ */
+
+#include "ca_defines.hcodal"
+#include "config.hcodal"
+#include "debug.hcodal"
+
+// -------------------------------------------------------------------------------------------------
+// Write-Back Stage
+// -------------------------------------------------------------------------------------------------
+
+event wb : pipeline(pipe.WB)
+{
+    use wb_output;
+
+    semantics
+    {
+        uint32 data_mem;
+        uint3 response;
+
+        // -----------------------------------------------------------------------------------------
+        // Load finish
+        // -----------------------------------------------------------------------------------------
+
+        if ( (r_wb_mem_op == MEM_LD)   ||
+             (r_wb_mem_op == MEM_LDHS) || (r_wb_mem_op == MEM_LDHU) ||
+             (r_wb_mem_op == MEM_LDBS) || (r_wb_mem_op == MEM_LDBU) )
+        {
+            if_ldst.transport(CP_PHS_DATA_READ, response, data_mem);
+
+            // Sign extension
+            switch (r_wb_mem_op)
+            {
+                case MEM_LDHS:
+                    s_wb_load = (int32)(int16)data_mem;
+                    break;
+
+                case MEM_LDBS:
+                    s_wb_load = (int32)(int8)data_mem;
+                    break;
+
+                default:
+                    s_wb_load = data_mem;
+                    break;
+            }
+        }
+        else
+        {
+            s_wb_load = 0;
+        }
+
+        s_wb_stall = 0;
+
+        // Output wb
+        wb_output();
+    };
+};
+
+event wb_output : pipeline(pipe.WB)
+{
+    semantics
+    {
+        // -----------------------------------------------------------------------------------------
+        // Operation result select
+        // -----------------------------------------------------------------------------------------
+
+        switch (r_wb_pipe_mux)
+        {
+            case ALU_PIPELINE:
+                s_wb_result = r_wb_alu;
+                break;
+
+            case LOAD_PIPELINE:
+                s_wb_result = s_wb_load;
+                break;
+
+            case PC_PIPELINE:
+                s_wb_result = r_wb_pc + INSTR_SIZE;
+                break;
+
+            default:
+                codasip_fatal(FATAL_DEFAULT, "Default case: %d\n", r_wb_pipe_mux);
+                break;
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Result write
+        // -----------------------------------------------------------------------------------------
+
+        if (r_wb_dest_we)
+        {
+            rf_gpr[r_wb_addrW] = s_wb_result;
+            codasip_info(INFO_RF_WRITE, "rf_gpr[%d] = 0x%x", r_wb_addrW, s_wb_result);
+        }
+    };
+};
+

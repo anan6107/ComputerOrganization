@@ -1,0 +1,85 @@
+/**
+ * Codasip Ltd
+ *
+ * CONFIDENTIAL
+ *
+ * Copyright 2016 Codasip Ltd
+ *
+ * All Rights Reserved.
+ *
+ * NOTICE: All information contained in this file, is and shall remain the property of Codasip Ltd
+ * and its suppliers, if any.
+ *
+ * The intellectual and technical concepts contained herein are confidential and proprietary to
+ * Codasip Ltd and are protected by trade secret and copyright law.  In addition, elements of the
+ * technical concepts may be patent pending.
+ *
+ * This file is part of the Codasip Studio product. No part of the Studio product, including this
+ * file, may be use, copied, modified, or distributed except in accordance with the terms contained
+ * in Codasip license agreement under which you obtained this file.
+ */
+
+/* -------------------------------------------------------------------------------------------------
+ *
+ *                         Codasip uRISC CA - pipeline control
+ *
+ * -------------------------------------------------------------------------------------------------
+ */
+
+#include "debug.hcodal"
+
+// -------------------------------------------------------------------------------------------------
+// Pipeline Control
+// -------------------------------------------------------------------------------------------------
+
+event pipeline_control : pipeline(pipe.FE)
+{
+    semantics
+    {
+        #pragma simulator
+        {
+            // Prints instructions in pipeline
+            print_pipeline();
+        }
+
+        // -----------------------------------------------------------------------------------------
+        if (s_fe_stall)
+        {
+            pipe.FE.stall();
+            codasip_info(INFO_PIPE, "pipeline FE stall\n");
+        }
+        // -----------------------------------------------------------------------------------------
+        if (s_id_stall)
+        {
+            pipe.ID.stall();
+            codasip_info(INFO_PIPE, "pipeline ID stall\n");
+        }
+        else if (s_id_clear)
+        {
+            pipe.ID.clear();
+            codasip_info(INFO_PIPE, "pipeline ID clear\n");
+        }
+        // -----------------------------------------------------------------------------------------
+        if (s_ex_stall)
+        {
+            pipe.EX.stall();
+            codasip_info(INFO_PIPE, "pipeline EX stall\n");
+        }
+        else if (s_ex_clear)
+        {
+            pipe.EX.clear();
+            codasip_info(INFO_PIPE, "pipeline EX clear\n");
+        }
+        // -----------------------------------------------------------------------------------------
+        if (s_wb_stall)
+        {
+            pipe.WB.stall();
+            codasip_info(INFO_PIPE, "pipeline WB stall\n");
+        }
+        else if (s_wb_clear)
+        {
+            pipe.WB.clear();
+            codasip_info(INFO_PIPE, "pipeline WB clear\n");
+        }
+    };
+};
